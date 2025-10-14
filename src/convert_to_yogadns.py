@@ -4,7 +4,7 @@ import os
 import requests
 from urllib.parse import urlparse
 
-TRACKER_LIST_URL = "https://github.com/fengyanfengyusuisuinian/tracker-aggregator/blob/main/TrackerServer/tracker.txt"
+TRACKER_LIST_URL = "https://raw.githubusercontent.com/fengyanfengyusuisuinian/tracker-aggregator/main/TrackerServer/tracker.txt"
 OUTPUT_FILE      = "output/yogadns_hosts.txt"
 
 def main():
