@@ -1,4 +1,4 @@
-# 工作流名称：Update Tracker List for YogaDNS
+# 工作流名称
 name: Update Tracker List for YogaDNS
 
 # 触发条件
@@ -6,21 +6,25 @@ on:
   schedule:
     # 北京时间每周一、四 13:00（UTC 05:00）
     - cron: '0 5 * * 1,4'
-  workflow_dispatch:  # 保留手动触发按钮
+  workflow_dispatch:  # 手动触发按钮
+
+# 最小权限：仅允许创建 Release，其余只读
+permissions:
+  contents: write
+  packages: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read  # 只读权限即可
-      packages: read
 
     steps:
       # 拉取源码
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       # 安装 Python
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: 3.x
 
@@ -30,7 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 生成 YogaDNS 规则文件
+      # 生成 YogaDNS 规则文件（含长度排序）
       - name: Generate yogadns_hosts.txt
         run: python src/convert_to_yogadns.py
 
@@ -41,7 +45,7 @@ jobs:
           name: yogadns_hosts
           path: output/yogadns_hosts.txt
 
-      # 发布 GitHub Release（只读 TOKEN 即可）
+      # 发布 GitHub Release（需 contents: write 权限）
       - name: Publish release
         uses: ncipollo/release-action@v1
         with:
@@ -49,5 +53,5 @@ jobs:
           name: "Tracker list build ${{ github.run_number }}"
           body: "自动生成，每周两次更新。"
           artifacts: "output/yogadns_hosts.txt"
-          token: ${{ github.token }}  # 默认只读 GITHUB_TOKEN
+          token: ${{ github.token }}  # 默认 GITHUB_TOKEN
           allowUpdates: true  # 若 tag 已存在则覆盖
