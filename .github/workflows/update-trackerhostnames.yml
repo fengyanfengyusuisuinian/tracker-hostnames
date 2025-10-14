@@ -1,38 +1,53 @@
+# 工作流名称：Update Tracker List for YogaDNS
 name: Update Tracker List for YogaDNS
 
+# 触发条件
 on:
   schedule:
-    - cron: '0 0 * * 1'  # 每周一 00:00 UTC（香港时间 08:00）
-    - cron: '0 0 * * 4'  # 每周四 00:00 UTC（香港时间 08:00）
-  workflow_dispatch:      # 支持手动触发
+    # 北京时间每周一、四 13:00（UTC 05:00）
+    - cron: '0 5 * * 1,4'
+  workflow_dispatch:  # 保留手动触发按钮
 
 jobs:
-  update-trackers:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read  # 只读权限即可
+      packages: read
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # 拉取源码
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.x'
+      # 安装 Python
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      # 安装依赖
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Run script to generate yogadns_hosts.txt
-      run: python src/convert_to_yogadns.py
+      # 生成 YogaDNS 规则文件
+      - name: Generate yogadns_hosts.txt
+        run: python src/convert_to_yogadns.py
 
-    - name: Commit and push changes
-      run: |
-        git config user.name "GitHub Actions Bot"
-        git config user.email "actions@github.com"
-        git add output/yogadns_hosts.txt
-        git commit -m "Update yogadns_hosts.txt [$(date)]" || echo "No changes to commit"
-        git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 上传为 Actions 构件，供手动下载
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yogadns_hosts
+          path: output/yogadns_hosts.txt
+
+      # 发布 GitHub Release（只读 TOKEN 即可）
+      - name: Publish release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: "v${{ github.run_number }}"  # 自动递增版本号
+          name: "Tracker list build ${{ github.run_number }}"
+          body: "自动生成，每周两次更新。"
+          artifacts: "output/yogadns_hosts.txt"
+          token: ${{ github.token }}  # 默认只读 GITHUB_TOKEN
+          allowUpdates: true  # 若 tag 已存在则覆盖
