@@ -1,5 +1,3 @@
-# tracker-hostnames
-将tracker服务器转换为hostnames，以供yogadns识别并使用
 # TrackerToYogaDNS
 
 从 GitHub tracker 列表自动生成 YogaDNS 域名配置文件，用于指定 DNS 服务器解析 BitTorrent tracker 域名。
