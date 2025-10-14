@@ -1,76 +1,44 @@
+#!/usr/bin/env python3
+# src/convert_to_yogadns.py
+import os
 import re
 import requests
 from urllib.parse import urlparse
-from pathlib import Path
 
-# 正则表达式匹配 IPv4 和 IPv6 地址
-IPV4_PATTERN = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?::\d+)?(/.*)?$"
-IPV6_PATTERN = r"^\[([0-9a-fA-F:]+)\](?::\d+)?(/.*)?$"
+TRACKER_LIST_URL = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all.txt"
+OUTPUT_FILE      = "output/yogadns_hosts.txt"
 
-def is_ip_address(url):
-    """检查 URL 是否包含 IP 地址（IPv4 或 IPv6）"""
-    try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        if not hostname:
-            return False
-        if re.match(IPV4_PATTERN, hostname) or re.match(IPV6_PATTERN, hostname):
-            return True
-        return False
-    except:
-        return False
+def main():
+    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 
-def extract_hostname(url):
-    """从 URL 提取主机名"""
-    try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        if hostname:
-            return hostname.lower()  # 转换为小写以规范化
-        return None
-    except:
-        return None
+    # 1. 下载
+    print("🚀 正在下载最新 tracker 列表…")
+    resp = requests.get(TRACKER_LIST_URL, timeout=30)
+    resp.raise_for_status()
+    raw_lines = [l.strip() for l in resp.text.splitlines() if l.strip()]
+    print(f"✅ 下载了 {len(raw_lines)} 条 tracker")
 
-def fetch_trackers_from_github(raw_url):
-    """从 GitHub raw URL 下载 tracker 列表"""
-    try:
-        response = requests.get(raw_url, timeout=10)
-        response.raise_for_status()
-        return [line.strip() for line in response.text.splitlines() if line.strip()]
-    except requests.RequestException as e:
-        print(f"Error fetching trackers from {raw_url}: {e}")
-        return []
+    # 2. 提取 hostname 并去重
+    host_set = set()
+    for line in raw_lines:
+        try:
+            if line.startswith(("http://", "https://", "udp://", "ws://", "wss://")):
+                host = urlparse(line).hostname
+                if host:
+                    host_set.add(host)
+        except Exception:
+            continue
 
-def convert_to_yogadns(trackers, output_file):
-    """将 tracker 列表转换为 YogaDNS 格式"""
-    hostnames = set()  # 使用集合去重
-    for tracker in trackers:
-        if not is_ip_address(tracker):
-            hostname = extract_hostname(tracker)
-            if hostname:
-                hostnames.add(hostname)
-    
-    # 确保输出目录存在
-    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-    
-    # 保存到文件
-    with open(output_file, 'w', encoding='utf-8') as f:
-        for hostname in sorted(hostnames):
-            f.write(f"{hostname}\n")
-    print(f"Generated YogaDNS config with {len(hostnames)} hostnames at {output_file}")
+    unique_hosts = sorted(host_set)
+    dropped = len(raw_lines) - len(unique_hosts)
+    print(f"❌ 已剔除 {dropped} 条无效/重复记录")
 
-# 主程序
+    # 3. 写入 YogaDNS 格式
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        for host in unique_hosts:
+            f.write(f"{host}\n")
+
+    print(f"🎉 最终生成 {len(unique_hosts)} 条 YogaDNS 规则，已写入 {OUTPUT_FILE}")
+
 if __name__ == "__main__":
-    # GitHub raw URL
-    tracker_raw_url = "https://raw.githubusercontent.com/fengyanfengyusuisuinian/tracker-aggregator/main/TrackerServer/tracker.txt"
-    
-    # 下载 tracker 列表
-    trackers = fetch_trackers_from_github(tracker_raw_url)
-    if not trackers:
-        print("No trackers retrieved. Exiting.")
-        exit(1)
-    
-    print(f"Downloaded {len(trackers)} trackers from GitHub.")
-    
-    # 转换为 YogaDNS 格式
-    convert_to_yogadns(trackers, "output/yogadns_hosts.txt")
+    main()
