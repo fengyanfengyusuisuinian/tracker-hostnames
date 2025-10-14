@@ -1,0 +1,2 @@
+# tracker-hostnames
+将tracker服务器转换为hostnames，以供yogadns识别并使用
