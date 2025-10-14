@@ -29,11 +29,13 @@ def main():
         except Exception:
             continue
 
-    unique_hosts = sorted(host_set)
+    # 3. 按 hostname 长度升序排列
+    unique_hosts = sorted(host_set, key=len)
     dropped = len(raw_lines) - len(unique_hosts)
     print(f"❌ 已剔除 {dropped} 条无效/重复记录")
+    print(f"📏 按 hostname 长度升序完成")
 
-    # 3. 写入 YogaDNS 格式
+    # 4. 写入 YogaDNS 格式
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         for host in unique_hosts:
             f.write(f"{host}\n")
