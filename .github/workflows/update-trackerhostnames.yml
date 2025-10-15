@@ -1,41 +1,44 @@
-# 工作流名称
-name: Update Tracker List for YogaDNS
+name: Update Tracker Lists for YogaDNS
 
+# 触发：每周一、四 13:00 (UTC 05:00) + 手动按钮
 on:
   schedule:
-    # 北京时间每周一、四 13:00（UTC 05:00）
     - cron: '0 5 * * 1,4'
   workflow_dispatch:
 
-# ✅ 关键：显式给 GITHUB_TOKEN 开写权限，而不用去 Settings 改全局
 permissions:
-  contents: write
-  packages: read
+  contents: write   # 需要写仓库
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # 1. 拉代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      # 2. 装 Python 3.x
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: '3.x'
 
+      # 3. 装依赖（tld + requests）
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: pip install tld requests
 
-      - name: Generate yogadns_hosts.txt
+      # 4. 运行脚本 → 同时生成①纯hostname ②裸域+通配
+      - name: Generate tracker lists
         run: python src/convert_to_yogadns.py
 
-      - name: Commit & Push
+      # 5. 提交并推送（有变化才 commit）
+      - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add output/yogadns_hosts.txt
+          # 把两份输出都加入暂存
+          git add output/yogadns_hosts.txt output/tracker_wildcard.txt
           git diff --staged --quiet || (
-            git commit -m "Update yogadns_hosts.txt [$(date)]"
+            git commit -m "Update tracker lists [$(date)]"
             git push
           )
